@@ -1,8 +1,36 @@
 #!/usr/bin/env python
 
+#################################################################################
+# Original 500px-Bot script by Kenshii                                          #
+# Modified by Atomneo                                                           #
+#################################################################################
+# Follow user, add to pending list                                              #
+# If user not followed us in 7 days unfollow user                               #
+# - remove user from pending, add user to ignored                               #
+# If user followed us in 7 days add to accepted list                            #
+#                                                                               #
+# Remove user from ignored after 30 days                                        #
+# Move user from accepted to pending after 30 days                              #
+#################################################################################
+
 import requests, time, json, os
 from bs4 import BeautifulSoup
 from random import randint
+
+# region configuration
+
+loginParams = {
+    'authenticity_token': '',  # Don't change me
+    'session[email]': '',  # Change me
+    'session[password]': ''  # Change me
+}
+
+# If user not followed us in this time unfollow user and add to ignored
+timeToCheck = 60 * 60 * 24 * 7  # 7 days
+
+# endregion
+
+# region initialization
 
 scriptDirectory = os.path.abspath(os.path.dirname(__file__))
 logDate = time.strftime('%Y-%m-%d')
@@ -23,12 +51,6 @@ ignoredFilePath = scriptDirectory + '/' + ignoredFileName
 logFileName = logDate + '_log.txt'
 logFilePath = scriptDirectory + '/logs/'
 
-loginParams = {
-    'authenticity_token': '', # Don't change me
-    'session[email]': '', # Change me
-    'session[password]': '' # Change me
-}
-
 csrfHeaders = {
     'X-CSRF-Token': '',
     'X-Requested-With': 'XMLHttpRequest'
@@ -37,6 +59,10 @@ csrfHeaders = {
 pendingFollowList = []
 acceptedFollowList = []
 ignoredFollowList = []
+
+# endregion
+
+# region offline functions
 
 def printToLog(string):
     global logFilePath, logFileName
@@ -47,7 +73,7 @@ def printToLog(string):
         f.write(logTime + ' - ' + string + '\n')
     print(logTime + ' - ' + string)
 
-def retrieveLists():
+def loadListsFromFiles():
     global pendingFilePath, acceptedFilePath, ignoredFilePath
     global pendingFollowList, acceptedFollowList, ignoredFollowList
     if os.path.exists(pendingFilePath):
@@ -82,6 +108,61 @@ def isUserIgnored(targetUserName):
             return True
     return False
 
+def addUserToPendingList(targetUserName):
+    global pendingFollowList, pendingFilePath
+    if targetUserName in pendingFollowList:
+        return
+    pendingFollowList.append({'name': targetUserName, 'time_followed': time.time()})
+    with open(pendingFilePath, 'w') as f:
+        f.write(json.dumps(pendingFollowList))
+
+def addUserToAcceptedList(targetUserName):
+    global acceptedFollowList, acceptedFilePath
+    if targetUserName in acceptedFollowList:
+        return
+    acceptedFollowList.append({'name': targetUserName, 'time_followed': time.time()})
+    with open(acceptedFilePath, 'w') as f:
+        f.write(json.dumps(acceptedFollowList))
+
+def addUserToIgnoredList(targetUserName):
+    global ignoredFollowList, ignoredFilePath
+    if targetUserName in ignoredFollowList:
+        return
+    ignoredFollowList.append({'name': targetUserName, 'time_followed': time.time()})
+    with open(ignoredFilePath, 'w') as f:
+        f.write(json.dumps(ignoredFollowList))
+
+def removeUserFromPendingList(targetUserName):
+    global pendingFollowList, pendingFilePath
+    for i, v in enumerate(list(pendingFollowList)):
+        if v['name'] == targetUserName:
+            pendingFollowList.remove(v)
+            break
+    with open(pendingFilePath, 'w') as f:
+        f.write(json.dumps(pendingFollowList))
+
+def removeUserFromAcceptedList(targetUserName):
+    global acceptedFollowList, acceptedFilePath
+    for i, v in enumerate(list(acceptedFollowList)):
+        if v['name'] == targetUserName:
+            acceptedFollowList.remove(v)
+            break
+    with open(acceptedFilePath, 'w') as f:
+        f.write(json.dumps(acceptedFollowList))
+
+def removeUserFromIgnoredList(targetUserName):
+    global ignoredFollowList, ignoredFilePath
+    for i, v in enumerate(list(ignoredFollowList)):
+        if v['name'] == targetUserName:
+            ignoredFollowList.remove(v)
+            break
+    with open(ignoredFilePath, 'w') as f:
+        f.write(json.dumps(ignoredFollowList))
+
+# endregion
+
+# region online functions
+
 def followUser(targetUserName):
     global userSession, numFollowsDone, csrfHeaders
     continueLoop = True
@@ -107,30 +188,6 @@ def followUser(targetUserName):
             printToLog('Web page timed out. Retrying...')
             time.sleep(5)
     time.sleep(20)
-
-def addUserToPendingList(targetUserName):
-    global pendingFollowList, pendingFilePath
-    if targetUserName in pendingFollowList:
-        return
-    pendingFollowList.append({'name': targetUserName, 'time_followed': time.time()})
-    with open(pendingFilePath, 'w') as f:
-        f.write(json.dumps(pendingFollowList))
-
-def addUserToAcceptedList(targetUserName):
-    global acceptedFollowList, acceptedFilePath
-    if targetUserName in acceptedFollowList:
-        return
-    acceptedFollowList.append({'name': targetUserName, 'time_followed': time.time()})
-    with open(acceptedFilePath, 'w') as f:
-        f.write(json.dumps(acceptedFollowList))
-
-def addUserToIgnoredList(targetUserName):
-    global ignoredFollowList, ignoredFilePath
-    if targetUserName in ignoredFollowList:
-        return
-    ignoredFollowList.append({'name': targetUserName, 'time_followed': time.time()})
-    with open(ignoredFilePath, 'w') as f:
-        f.write(json.dumps(ignoredFollowList))
 
 def unfollowUser(targetUserName):
     global userSession, csrfHeaders
@@ -197,49 +254,27 @@ def requestWebPage(method, url, data = {}, headers = {}, checkStatusCode = True)
             continue
         return response
 
-def removeUserFromPendingList(targetUserName):
-    global pendingFollowList, pendingFilePath
-    for i, v in enumerate(list(pendingFollowList)):
-        if v['name'] == targetUserName:
-            pendingFollowList.remove(v)
-            break
-    with open(pendingFilePath, 'w') as f:
-        f.write(json.dumps(pendingFollowList))
+# endregion
 
-def removeUserFromAcceptedList(targetUserName):
-    global acceptedFollowList, acceptedFilePath
-    for i, v in enumerate(list(acceptedFollowList)):
-        if v['name'] == targetUserName:
-            acceptedFollowList.remove(v)
-            break
-    with open(acceptedFilePath, 'w') as f:
-        f.write(json.dumps(acceptedFollowList))
-
-def removeUserFromIgnoredList(targetUserName):
-    global ignoredFollowList, ignoredFilePath
-    for i, v in enumerate(list(ignoredFollowList)):
-        if v['name'] == targetUserName:
-            ignoredFollowList.remove(v)
-            break
-    with open(ignoredFilePath, 'w') as f:
-        f.write(json.dumps(ignoredFollowList))
+# region main
 
 # Retrieving the list of currently pending followed users by the bot.
 
-retrieveLists()
+loadListsFromFiles()
 
 # Time to remove anyone in any list for more than a week.
 
 currentTime = time.time()
+
 for i, v in enumerate(list(acceptedFollowList)):
-    if currentTime - v['time_followed'] > 604800:
+    if currentTime - v['time_followed'] < timeToCheck:
         continue
     acceptedFollowList.remove(v)
     with open(acceptedFilePath, 'w') as f:
         f.write(json.dumps(acceptedFollowList))
 
 for i, v in enumerate(list(ignoredFollowList)):
-    if currentTime - v['time_followed'] > 604800:
+    if currentTime - v['time_followed'] < timeToCheck:
         continue
     ignoredFollowList.remove(v)
     with open(ignoredFilePath, 'w') as f:
@@ -257,7 +292,7 @@ csrfHeaders['X-CSRF-Token'] = loginParams['authenticity_token']
 
 # This is the actual login request.
 
-userLogin = requestWebPage('POST', 'https://api.500px.com/v1/session', data = loginParams)
+userLogin = requestWebPage('POST', 'https://api.500px.com/v1/session', data=loginParams)
 printToLog('Logged in successfully.')
 time.sleep(20)
 
@@ -314,7 +349,7 @@ numFollowsWanted = 101 # 101 is the daily limit for follows, and any more than t
 numFollowsDone = 0 # Do not change.
 
 while numFollowsDone < numFollowsWanted:
-    upcomingPage = requestWebPage('GET', 'https://api.500px.com/v1/photos?feature=upcoming&include_states=false&page=' + str(pageNum) + '&rpp=50', headers = csrfHeaders)
+    upcomingPage = requestWebPage('GET', 'https://api.500px.com/v1/photos?feature=upcoming&include_states=false&page=' + str(pageNum) + '&rpp=50', headers=csrfHeaders)
     upcomingPage_json = json.loads(upcomingPage.text)
     for upcomingPhoto in upcomingPage_json['photos']:
         userName = upcomingPhoto['user']['username']
@@ -327,3 +362,5 @@ while numFollowsDone < numFollowsWanted:
     pageNum += 1
     time.sleep(20)
 printToLog('Finished. No more users left to follow.')
+
+# endregion

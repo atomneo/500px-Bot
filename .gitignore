@@ -54,3 +54,4 @@ logs
 acceptedUsers.txt
 ignoredUsers.txt
 pendingUsers.txt
+/.idea
