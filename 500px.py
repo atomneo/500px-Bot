@@ -469,7 +469,7 @@ def likeSomePhotos():
             printToLog('Liked ' + str(num_likes_done) + ' of ' + str(num_likes_wanted))
         page_num += 1
         wait(10)
-    printToLog('Finished. No more users left to follow.')
+    printToLog('Finished. No more photos left to like.')
 
 
 def likePhoto(photo_id):
@@ -483,10 +483,10 @@ def likePhoto(photo_id):
                 num_likes_done += 1
                 continue_loop = False
             elif like_resp.status_code == 404:
-                printToLog('Photo ' + photo_id + ' no longer exists. Skipped like.')
+                printToLog('Photo ' + str(photo_id) + ' no longer exists. Skipped like.')
                 continue_loop = False
             elif like_resp.status_code == 403:
-                printToLog('Already liked ' + photo_id + '.')
+                printToLog('Already liked ' + str(photo_id) + '.')
                 continue_loop = False
             else:
                 printToLog('A server error (' + str(like_resp.status_code) + ') occured. Retrying...')
