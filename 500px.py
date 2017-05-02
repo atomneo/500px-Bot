@@ -520,10 +520,10 @@ def main():
     # Time to see who has actually bothered following us.
     # pending_user_names = [pending_follow_user['name'] for pending_follow_user in pending_follow_list]
 
-    # reviewFollowedAndFollowers()
+    reviewFollowedAndFollowers()
 
     # Time to view the up-and-coming and follow more people :)
-    # followNewPeople()
+    followNewPeople()
 
     # Like random photos
     likeSomePhotos()
