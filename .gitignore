@@ -55,3 +55,4 @@ acceptedUsers.txt
 ignoredUsers.txt
 pendingUsers.txt
 /.idea
+/*.bak
