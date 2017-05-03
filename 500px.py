@@ -54,9 +54,9 @@ accepted_clear_time = 60 * 60 * 24 * 30  # 30 days
 
 num_follows_wanted = 101  # 101 is the daily limit for follows, and any more than this fails. Don't increase.
 
-num_likes_wanted = 100
+num_likes_wanted = 200
 like_chance = 25  # percents
-minimal_rating = 75  # didn't like photo with rating lower than minimal rating
+minimal_rating = 74  # didn't like photo with rating lower than minimal rating # remarks - photos in upcoming has rating around 75
 show_colors = True
 base_wait_time = 7  # seconds
 
@@ -278,8 +278,8 @@ def followUser(target_user_name):
         try:
             follow_resp = userSession.post('https://500px.com/' + target_user_name + '/follow', timeout=5, headers=csrfHeaders)
             if follow_resp.status_code == 200:
-                printToLog('Followed ' + target_user_name + '.')
                 num_follows_done += 1
+                printToLog('Followed ' + target_user_name + ' (' + str(num_follows_done) + ' of ' + str(num_follows_wanted) + ').')
                 addUserToPendingList(target_user_name)
                 continue_loop = False
             elif follow_resp.status_code == 404:
@@ -296,7 +296,6 @@ def followUser(target_user_name):
             printToLog('Web page timed out. Retrying...')
             wait(0)
     wait(5)
-
 
 
 def unfollowUser(target_user_name):
@@ -438,7 +437,6 @@ def followNewPeople():
                 break
             if not isUserPending(user_name) and not isUserAccepted(user_name) and not isUserIgnored(user_name):
                 followUser(user_name)
-                printToLog('Followed ' + str(num_follows_done) + ' of ' + str(num_follows_wanted))
             else:
                 printToLog(grey + 'Skipping ' + user_name + '.' + end_color)
         page_num += 1
@@ -466,7 +464,6 @@ def likeSomePhotos():
                 continue
 
             likePhoto(photo_id)
-            printToLog('Liked ' + str(num_likes_done) + ' of ' + str(num_likes_wanted))
         page_num += 1
         wait(10)
     printToLog('Finished. No more photos left to like.')
@@ -479,8 +476,8 @@ def likePhoto(photo_id):
         try:
             like_resp = userSession.post('https://api.500px.com/v1/photos/' + str(photo_id) + '/vote?vote=1', timeout=5, headers=csrfHeaders)
             if like_resp.status_code == 200:
-                printToLog('Liked ' + str(photo_id) + '.')
                 num_likes_done += 1
+                printToLog('Liked ' + str(photo_id) + ' (' + str(num_likes_done) + ' of ' + str(num_likes_wanted) + ').')
                 continue_loop = False
             elif like_resp.status_code == 404:
                 printToLog('Photo ' + str(photo_id) + ' no longer exists. Skipped like.')
@@ -497,6 +494,30 @@ def likePhoto(photo_id):
             wait(0)
     wait(5)
 
+
+def followNewPeopleAndLikeSomePhotos():
+    global page_num
+    while num_follows_done < num_follows_wanted:
+        upcoming_page = requestWebPage('GET', 'https://api.500px.com/v1/photos?feature=upcoming&include_states=false&page=' + str(page_num) + '&rpp=50', headers=csrfHeaders)
+        upcoming_page_json = json.loads(upcoming_page.text)
+        for upcoming_photo in upcoming_page_json['photos']:
+            user_name = upcoming_photo['user']['username']
+            photo_rating = upcoming_photo['rating']
+            photo_id = upcoming_photo['id']
+
+            if photo_rating >= minimal_rating and num_likes_done < num_likes_wanted and randint(0, 100) > like_chance:
+                likePhoto(photo_id)
+
+            if num_follows_done == num_follows_wanted:
+                break
+
+            if not isUserPending(user_name) and not isUserAccepted(user_name) and not isUserIgnored(user_name):
+                followUser(user_name)
+            else:
+                printToLog(grey + 'Skipping ' + user_name + '.' + end_color)
+        page_num += 1
+        wait(10)
+    printToLog('Finished. No more users left to follow.')
 
 # endregion
 
@@ -523,11 +544,12 @@ def main():
     reviewFollowedAndFollowers()
 
     # Time to view the up-and-coming and follow more people :)
-    followNewPeople()
+    # followNewPeople()
 
     # Like random photos
-    likeSomePhotos()
+    # likeSomePhotos()
 
+    followNewPeopleAndLikeSomePhotos()
 
 my_user_info = None
 page_num = 1  # Do not change.
