@@ -55,7 +55,7 @@ accepted_clear_time = 60 * 60 * 24 * 30  # 30 days
 num_follows_wanted = 101  # 101 is the daily limit for follows, and any more than this fails. Don't increase.
 
 num_likes_wanted = 200
-like_chance = 25  # percents
+like_chance = 75  # percents
 minimal_rating = 74  # didn't like photo with rating lower than minimal rating # remarks - photos in upcoming has rating around 75
 show_colors = True
 base_wait_time = 7  # seconds
@@ -331,7 +331,7 @@ def getFollowing():
         if page_num == following_page_json['friends_pages']:
             break
         page_num += 1
-        wait(10)
+        wait(4)
     return following
 
 
@@ -505,7 +505,9 @@ def followNewPeopleAndLikeSomePhotos():
             photo_rating = upcoming_photo['rating']
             photo_id = upcoming_photo['id']
 
-            if photo_rating >= minimal_rating and num_likes_done < num_likes_wanted and randint(0, 100) > like_chance:
+            rand_result = randint(0, 100)
+
+            if photo_rating >= minimal_rating and num_likes_done < num_likes_wanted and rand_result < like_chance:
                 likePhoto(photo_id)
 
             if num_follows_done == num_follows_wanted:
